@@ -1,5 +1,8 @@
 ---
+name: generate
 description: Generate a TikTok/Shorts-style video from a news article URL or JSON file
+disable-model-invocation: true
+argument-hint: "[url-or-json-file]"
 ---
 
 # Generate Video
