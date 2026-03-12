@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "remotion-video",
-      "source": "./remotion-video",
+      "source": ".",
       "description": "Generate TikTok/Shorts-style videos from news articles"
     }
   ]

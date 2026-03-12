@@ -5,16 +5,16 @@ import { readFileSync } from "fs";
 import { mkdir } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { scrapeArticle } from "../../../src/pipeline/scrape.js";
-import { summarizeArticle } from "../../../src/pipeline/summarize.js";
-import { assignImages } from "../../../src/pipeline/assign-images.js";
-import { buildManuscript } from "../../../src/pipeline/build-manuscript.js";
-import { renderVideo } from "../../../src/render.js";
-import { runPipeline } from "../../../src/pipeline/index.js";
-import type { PipelineInput } from "../../../src/types.js";
+import { scrapeArticle } from "../../src/pipeline/scrape.js";
+import { summarizeArticle } from "../../src/pipeline/summarize.js";
+import { assignImages } from "../../src/pipeline/assign-images.js";
+import { buildManuscript } from "../../src/pipeline/build-manuscript.js";
+import { renderVideo } from "../../src/render.js";
+import { runPipeline } from "../../src/pipeline/index.js";
+import type { PipelineInput } from "../../src/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = process.env.REMOTION_PROJECT_ROOT || path.resolve(__dirname, "../../..");
+const PROJECT_ROOT = process.env.REMOTION_PROJECT_ROOT || path.resolve(__dirname, "../..");
 
 // Logger for MCP — must use stderr (stdout is reserved for JSON-RPC)
 const logger = (msg: string) => console.error(msg);
