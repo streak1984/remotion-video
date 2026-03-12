@@ -1,6 +1,6 @@
 {
   "name": "remotion-video",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "Generate TikTok/Shorts-style videos from news articles using Claude AI and Remotion. Scrapes articles, generates subtitles, and renders vertical MP4 videos with Ken Burns effects.",
   "author": {
     "name": "Thomas Nesmyhre"
