@@ -1,0 +1,13 @@
+{
+  "name": "remotion-video",
+  "owner": {
+    "name": "Thomas Nesmyhre"
+  },
+  "plugins": [
+    {
+      "name": "remotion-video",
+      "source": "remotion-video",
+      "description": "Generate TikTok/Shorts-style videos from news articles"
+    }
+  ]
+}

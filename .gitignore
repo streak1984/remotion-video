@@ -1,0 +1,8 @@
+node_modules/
+dist/
+output/
+public/*.jpg
+public/*.png
+public/*.webp
+public/*.gif
+.DS_Store

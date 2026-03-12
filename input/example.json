@@ -1,0 +1,31 @@
+{
+  "article": {
+    "title": "Norge leder elbil-revolusjonen",
+    "text": "Norge har nådd en ny milepæl i overgangen til elektriske kjøretøy. Over 90 prosent av nye bilsalg i landet er nå helelektriske, noe som gjør Norge til verdensledende i elbil-adopsjon. Regjeringens kombinasjon av skattefordeler, bompengeunntak og investeringer i ladeinfrastruktur har skapt en modell som andre nasjoner studerer nøye. Kritikere påpeker at Norges oljerikdom har finansiert overgangen, noe som reiser spørsmål om tilnærmingen kan kopieres i mindre velstående land. Elbilforeningen melder at det nå er over en million elbiler registrert i Norge, en imponerende bragd for et land med bare 5,5 millioner innbyggere."
+  },
+  "images": [
+    {
+      "id": "img-0",
+      "source": "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=1080&h=1920&fit=crop",
+      "byline": "Unsplash"
+    },
+    {
+      "id": "img-1",
+      "source": "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1080&h=1920&fit=crop",
+      "byline": "Unsplash"
+    },
+    {
+      "id": "img-2",
+      "source": "https://images.unsplash.com/photo-1619317728211-f91f2f2e8bfc?w=1080&h=1920&fit=crop",
+      "byline": "Unsplash"
+    },
+    {
+      "id": "img-3",
+      "source": "https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=1080&h=1920&fit=crop",
+      "byline": "Unsplash"
+    }
+  ],
+  "options": {
+    "secondsPerSegment": 4
+  }
+}
