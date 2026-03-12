@@ -7,7 +7,8 @@
     {
       "name": "remotion-video",
       "source": ".",
-      "description": "Generate TikTok/Shorts-style videos from news articles"
+      "description": "Generate TikTok/Shorts-style videos from news articles",
+      "version": "2.0.0"
     }
   ]
 }
