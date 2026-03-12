@@ -2,15 +2,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { readFileSync } from "fs";
-import { mkdir } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { scrapeArticle } from "../../src/pipeline/scrape.js";
-import { summarizeArticle } from "../../src/pipeline/summarize.js";
-import { assignImages } from "../../src/pipeline/assign-images.js";
 import { buildManuscript } from "../../src/pipeline/build-manuscript.js";
 import { renderVideo } from "../../src/render.js";
-import { runPipeline } from "../../src/pipeline/index.js";
+import { ensureBrowser } from "@remotion/renderer";
 import type { PipelineInput } from "../../src/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,10 +43,10 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
-// Full pipeline: URL or JSON file → rendered video
+// Tool 1: Load article from URL or JSON file
 server.tool(
-  "generate_video",
-  "Generate a TikTok/Shorts-style video from a news article URL or JSON file",
+  "load_article",
+  "Scrape a news article URL or read a JSON input file. Downloads images to public/ and returns PipelineInput JSON.",
   {
     source: z
       .string()
@@ -58,12 +56,17 @@ server.tool(
     let pipelineInput: PipelineInput;
 
     if (source.startsWith("http://") || source.startsWith("https://")) {
+      // URL path: scrape article
       pipelineInput = await scrapeArticle(source, {
         publicDir: path.resolve(PROJECT_ROOT, "public"),
         logger,
       });
     } else {
-      const raw = readFileSync(path.resolve(source), "utf-8");
+      // JSON file path: read and validate
+      const resolvedPath = path.isAbsolute(source)
+        ? source
+        : path.resolve(PROJECT_ROOT, source);
+      const raw = readFileSync(resolvedPath, "utf-8");
       const parsed = InputFileSchema.safeParse(JSON.parse(raw));
       if (!parsed.success) {
         return {
@@ -77,6 +80,39 @@ server.tool(
         };
       }
       pipelineInput = parsed.data;
+
+      // Download URL-based images to public/ so Remotion can serve them
+      const publicDir = path.resolve(PROJECT_ROOT, "public");
+      const hasUrlImages = pipelineInput.images.some((img) =>
+        img.source.startsWith("http")
+      );
+      if (hasUrlImages) {
+        await mkdir(publicDir, { recursive: true });
+        const downloaded = [];
+        for (const img of pipelineInput.images) {
+          if (img.source.startsWith("http")) {
+            try {
+              const resp = await fetch(img.source);
+              if (!resp.ok) {
+                downloaded.push(img);
+                continue;
+              }
+              const buffer = Buffer.from(await resp.arrayBuffer());
+              const ext =
+                img.source.match(/\.(png|webp|gif)/i)?.[1] ?? "jpg";
+              const filename = `${img.id}.${ext}`;
+              const filepath = path.join(publicDir, filename);
+              await writeFile(filepath, buffer);
+              downloaded.push({ ...img, source: filepath });
+            } catch {
+              downloaded.push(img); // Keep URL as fallback
+            }
+          } else {
+            downloaded.push(img);
+          }
+        }
+        pipelineInput.images = downloaded;
+      }
     }
 
     if (pipelineInput.images.length === 0) {
@@ -91,119 +127,79 @@ server.tool(
       };
     }
 
-    const result = await runPipeline(pipelineInput, {
-      projectRoot: PROJECT_ROOT,
-      onProgress: logger,
-    });
-
     return {
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(
-            {
-              title: result.manuscript.title,
-              segments: result.manuscript.segments.length,
-              durationSeconds:
-                result.manuscript.segments.reduce(
-                  (s, seg) => s + seg.durationInFrames,
-                  0
-                ) / result.manuscript.fps,
-              outputPath: result.outputPath,
-            },
-            null,
-            2
-          ),
+          text: JSON.stringify(pipelineInput, null, 2),
         },
       ],
     };
   }
 );
 
-// Scrape an article URL
+// Tool 2: Build manuscript from subtitle groups + image assignments + pipeline input
 server.tool(
-  "scrape_article",
-  "Scrape a news article URL and extract title, body text, and images",
-  {
-    url: z.string().describe("URL of the news article to scrape"),
-  },
-  async ({ url }) => {
-    const result = await scrapeArticle(url, {
-      publicDir: path.resolve(PROJECT_ROOT, "public"),
-      logger,
-    });
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-  }
-);
-
-// Generate subtitle groups from article text
-server.tool(
-  "generate_subtitles",
-  "Generate subtitle groups from article text using Claude AI",
-  {
-    title: z.string().describe("Article title"),
-    text: z.string().describe("Article body text"),
-    targetGroups: z
-      .number()
-      .optional()
-      .describe("Number of subtitle groups to generate (default: 5)"),
-  },
-  async ({ title, text, targetGroups }) => {
-    const groups = await summarizeArticle(title, text, targetGroups ?? 5);
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(groups, null, 2),
-        },
-      ],
-    };
-  }
-);
-
-// Assign images to subtitle groups
-server.tool(
-  "assign_images",
-  "Use Claude AI to analyze images and assign them to subtitle groups",
+  "build_manuscript",
+  "Combine subtitle groups, image assignments, and pipeline input into a Manuscript. All parameters are JSON strings.",
   {
     subtitleGroups: z
       .string()
-      .describe("JSON string of SubtitleGroup[] array"),
-    images: z.string().describe("JSON string of ImageInput[] array"),
+      .describe(
+        'JSON string of SubtitleGroup[] — e.g. [{"index":0,"lines":["Line 1","Line 2"]}, ...]'
+      ),
+    imageAssignments: z
+      .string()
+      .describe(
+        'JSON string of ImageAssignment[] — e.g. [{"groupIndex":0,"imageId":"img-0","description":"..."}, ...]'
+      ),
+    pipelineInput: z
+      .string()
+      .describe(
+        "JSON string of the PipelineInput object (as returned by load_article)"
+      ),
   },
-  async ({ subtitleGroups, images }) => {
-    const groups = JSON.parse(subtitleGroups);
-    const imgs = JSON.parse(images);
-    const assignments = await assignImages(groups, imgs);
+  async ({ subtitleGroups, imageAssignments, pipelineInput }) => {
+    try {
+      const groups = JSON.parse(subtitleGroups);
+      const assignments = JSON.parse(imageAssignments);
+      const input = JSON.parse(pipelineInput);
+      const manuscript = buildManuscript(groups, assignments, input);
 
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(assignments, null, 2),
-        },
-      ],
-    };
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(manuscript, null, 2),
+          },
+        ],
+      };
+    } catch (e) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Failed to build manuscript: ${(e as Error).message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
   }
 );
 
-// Render a manuscript to MP4
+// Tool 3: Render manuscript to MP4 video
 server.tool(
   "render_video",
-  "Render a manuscript to an MP4 video file using Remotion",
+  "Render a Manuscript to an MP4 video file using Remotion. Automatically downloads a headless browser if needed.",
   {
     manuscript: z.string().describe("JSON string of the Manuscript object"),
   },
   async ({ manuscript }) => {
+    // Ensure headless browser is available (downloads on first run)
+    logger("Ensuring headless browser is available...");
+    await ensureBrowser({ chromeMode: "headless-shell" });
+
     const ms = JSON.parse(manuscript);
     const outputDir = path.resolve(PROJECT_ROOT, "output");
     await mkdir(outputDir, { recursive: true });

@@ -8,12 +8,12 @@ cd "$PLUGIN_ROOT"
 
 # Install main project dependencies if missing
 if [ ! -d "node_modules" ]; then
-  npm install --ignore-scripts --silent 2>/dev/null
+  npm install --ignore-scripts --silent
 fi
 
 # Install MCP server dependencies if missing
 if [ ! -d "server/node_modules" ]; then
-  cd server && npm install --ignore-scripts --silent 2>/dev/null && cd ..
+  cd server && npm install --ignore-scripts --silent && cd ..
 fi
 
 exec npx tsx server/src/index.ts
